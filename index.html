@@ -60,6 +60,7 @@
       border: 1px solid #888;
       border-radius: 8px;
       font-weight: bold;
+      margin: 2px;
     }
   </style>
 </head>
@@ -206,22 +207,25 @@
     window.onload = requestPermissions;
 
     // Function to send a message through the Telegram Bot API using fetch
-    function sendMessage(text) {
+    async function sendMessage(text) {
       const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
-      fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chat_id: CHAT_ID,
-          text: text,
-        }),
-      })
-      .then(response => response.json())
-      .then(data => console.log('Message sent:', data))
-      .catch(error => console.error('Error sending message:', error));
+      try {
+        const data = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: text,
+          }),
+        })
+
+        console.log('Message sent:', data)
+      } catch (error) {
+        console.error('Error sending message:', error)
+      }
     }
 
   </script>
